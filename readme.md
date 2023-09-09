@@ -44,6 +44,10 @@ make install
   - returns a dict of the parts (timestamp and hex-encoded payload) of the ksuid
 * **::ksuid::parts_to_ksuid** *parts_dict*
   - returns a ksuid from a dict of the parts (timestamp and hex-encoded payload) of the ksuid
+* **::ksuid::next_ksuid** *ksuid*
+  - returns the next ksuid
+* **::ksuid::prev_ksuid** *ksuid*
+  - returns the previous ksuid
 * **::ksuid::hex_encode** *bytes*
   - returns a hex-encoded string
 * **::ksuid::hex_decode** *hex_string*
