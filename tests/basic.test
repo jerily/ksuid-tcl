@@ -33,3 +33,14 @@ test basic-5 {prev of zero is max} -body {
     set ksuid "000000000000000000000000000"
     ::ksuid::prev_ksuid $ksuid
 } -result {aWgEPTl1tmebfsQzFP4bxwgy80V}
+
+test error-1 {invalid ksuid} -body {
+    set ksuid "aaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    ::ksuid::ksuid_to_parts $ksuid
+} -returnCodes error -result {invalid base62}
+
+test error-2 {invalid character} -body {
+    set ksuid "aWgEPTl1tmebfsQzFP4bxwgy80!"
+    ::ksuid::ksuid_to_parts $ksuid
+} -returnCodes error -result {invalid character}
+

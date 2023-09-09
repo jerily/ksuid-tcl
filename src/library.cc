@@ -100,7 +100,10 @@ static int ksuid_ConcatTimestampAndPayload(Tcl_Interp *interp, const unsigned ch
 
     // ---- Base62 encode with fixed length ----
     unsigned char base62[PAD_TO_LENGTH];
-    base62_encode(timestamp_and_payload_bytes, TOTAL_BYTES, base62, PAD_TO_LENGTH);
+    if (TCL_OK != base62_encode(timestamp_and_payload_bytes, TOTAL_BYTES, base62, PAD_TO_LENGTH)) {
+        Tcl_SetObjResult(interp, Tcl_NewStringObj("invalid base62", -1));
+        return TCL_ERROR;
+    }
     std::string base62_str(base62, base62 + PAD_TO_LENGTH);
 
     Tcl_SetObjResult(interp, Tcl_NewStringObj(base62_str.c_str(), base62_str.length()));
@@ -167,7 +170,10 @@ static int ksuid_KsuidToParts(Tcl_Interp *interp, const char * ksuid, Tcl_Obj **
 
     // ---- Base62 decode ----
     unsigned char timestamp_and_payload_bytes[TOTAL_BYTES];
-    base62_decode(ksuid_bytes, PAD_TO_LENGTH, timestamp_and_payload_bytes, TOTAL_BYTES);
+    if (TCL_OK != base62_decode(ksuid_bytes, PAD_TO_LENGTH, timestamp_and_payload_bytes, TOTAL_BYTES)) {
+        Tcl_SetObjResult(interp, Tcl_NewStringObj("invalid base62", -1));
+        return TCL_ERROR;
+    }
 
     // ---- Convert the timestamp bytes to a long ----
     unsigned int timestamp = ksuid_BytesToTimestamp(timestamp_and_payload_bytes);
@@ -225,8 +231,6 @@ static int ksuid_PartsToKsuidCmd(ClientData clientData, Tcl_Interp *interp, int 
     if (TCL_OK != Tcl_GetLongFromObj(interp, timestampPtr, &timestamp)) {
         return TCL_ERROR;
     }
-//    timestamp /= 1000;
-//    timestamp -= EPOCH;
 
     // Create a vector of size 4 to store the timestamp bytes
     // Convert the timestamp to bytes and store them in the vector
@@ -276,8 +280,6 @@ static int ksuid_NextKsuidCmd(ClientData clientData, Tcl_Interp *interp, int obj
     if (TCL_OK != Tcl_GetLongFromObj(interp, timestampPtr, &timestamp)) {
         return TCL_ERROR;
     }
-//    timestamp /= 1000;
-//    timestamp -= EPOCH;
 
     unsigned char timestamp_bytes[TIMESTAMP_BYTES];
     ksuid_TimestampToBytes(timestamp, timestamp_bytes);
@@ -324,8 +326,6 @@ static int ksuid_PrevKsuidCmd(ClientData clientData, Tcl_Interp *interp, int obj
     if (TCL_OK != Tcl_GetLongFromObj(interp, timestampPtr, &timestamp)) {
         return TCL_ERROR;
     }
-//    timestamp /= 1000;
-//    timestamp -= EPOCH;
 
     unsigned char timestamp_bytes[TIMESTAMP_BYTES];
     ksuid_TimestampToBytes(timestamp, timestamp_bytes);

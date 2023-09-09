@@ -2,12 +2,15 @@
 
 static char BASE_62_CHARACTERS[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
-void base62_encode(unsigned char timestamp_and_payload_bytes[], int input_length,
+int base62_encode(unsigned char timestamp_and_payload_bytes[], int input_length,
                   unsigned char output[], int output_length) {
 
     auto offset = output_length;
     auto input = timestamp_and_payload_bytes;
     while (input_length > 0) {
+        if (offset == 0) {
+            return TCL_ERROR;
+        }
         std::vector<unsigned char> quotients;
         unsigned long remainder = 0;
         for (int i = 0; i < input_length; i++) {
@@ -28,12 +31,16 @@ void base62_encode(unsigned char timestamp_and_payload_bytes[], int input_length
         output[--offset] = BASE_62_CHARACTERS[0];
     }
 
+    return TCL_OK;
 }
 
-void base62_decode(unsigned char base62_encoded_bytes[], int input_length, unsigned char output[], int output_length) {
+int base62_decode(unsigned char base62_encoded_bytes[], int input_length, unsigned char output[], int output_length) {
     auto offset = output_length;
     auto input = base62_encoded_bytes;
     while (input_length > 0) {
+        if (offset == 0) {
+            return TCL_ERROR;
+        }
         std::vector<unsigned char> quotients;
         unsigned long remainder = 0;
         for (int i = 0; i < input_length; i++) {
@@ -54,4 +61,5 @@ void base62_decode(unsigned char base62_encoded_bytes[], int input_length, unsig
         output[--offset] = 0;
     }
 
+    return TCL_OK;
 }
