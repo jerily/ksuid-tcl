@@ -5,7 +5,7 @@
 #include <vector>
 #include <string>
 
-void hex_encode(unsigned char *str, int length, std::string& output);
-void hex_decode(const std::string& str, int length, unsigned char *output);
+int hex_encode(const unsigned char *str, int length, std::string& output);
+int hex_decode(const std::string& str, int length, unsigned char *output, int output_length);
 
 #endif //KSUID_TCL_HEX_H

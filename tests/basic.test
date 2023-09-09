@@ -44,3 +44,12 @@ test error-2 {invalid character} -body {
     ::ksuid::ksuid_to_parts $ksuid
 } -returnCodes error -result {invalid character}
 
+test error-3 {invalid payload length} -body {
+    set d [dict create timestamp 0 payload 0]
+    ::ksuid::parts_to_ksuid $d
+} -returnCodes error -result {invalid hex}
+
+test error-4 {invalid hex} -body {
+    set d [dict create timestamp 0 payload 00]
+    ::ksuid::parts_to_ksuid $d
+} -returnCodes error -result {invalid hex}

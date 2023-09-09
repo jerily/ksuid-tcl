@@ -1,0 +1,14 @@
+package require tcltest
+package require ksuid
+
+namespace import -force ::tcltest::test
+
+::tcltest::configure {*}$argv
+
+test hex-1 {encode hello world} -body {
+    ::ksuid::hex_encode "hello world"
+} -result {68656c6c6f20776f726c64}
+
+test hex-2 {decode hello world} -body {
+    ::ksuid::hex_decode "68656c6c6f20776f726c64"
+} -result {hello world}

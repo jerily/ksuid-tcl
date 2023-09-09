@@ -64,6 +64,8 @@ static char MAX_STRING_ENCODED[] = "aWgEPTl1tmebfsQzFP4bxwgy80V";
 
 static void ksuid_TimestampToBytes(unsigned int x, unsigned char bytes[]) {
 #if IS_BIG_ENDIAN
+    // just use memcpy
+    memcpy(bytes, &x, 4);
 #else
     // Extract each byte of x and store it in the array in reverse order
     bytes[0] = (x >> 24) & 0xFF; // The most significant byte
@@ -74,15 +76,17 @@ static void ksuid_TimestampToBytes(unsigned int x, unsigned char bytes[]) {
 }
 
 unsigned int ksuid_BytesToTimestamp(const unsigned char bytes[]) {
-#if IS_BIG_ENDIAN
-#else
     unsigned int result = 0;
+#if IS_BIG_ENDIAN
+    // just use memcpy
+    memcpy(&result, bytes, 4);
+#else
     result |= (bytes[0] << 24); // Shift the most significant byte left by 24 bits and add it to the result
     result |= (bytes[1] << 16); // Shift the second most significant byte left by 16 bits and add it to the result
     result |= (bytes[2] << 8); // Shift the third most significant byte left by 8 bits and add it to the result
     result |= bytes[3]; // Add the least significant byte to the result
-    return result;
 #endif
+    return result;
 }
 
 
@@ -238,9 +242,13 @@ static int ksuid_PartsToKsuidCmd(ClientData clientData, Tcl_Interp *interp, int 
     ksuid_TimestampToBytes(timestamp, timestamp_bytes);
 
     // ---- Convert the payload to bytes ----
-    auto payload = Tcl_GetString(payloadPtr);
+    int payload_length;
+    auto payload = Tcl_GetStringFromObj(payloadPtr, &payload_length);
     unsigned char payload_bytes[PAYLOAD_BYTES];
-    hex_decode(payload, PAYLOAD_BYTES, payload_bytes);
+    if (TCL_OK != hex_decode(payload, payload_length, payload_bytes, PAYLOAD_BYTES)) {
+        Tcl_SetObjResult(interp, Tcl_NewStringObj("invalid hex", -1));
+        return TCL_ERROR;
+    }
 
     return ksuid_ConcatTimestampAndPayload(interp, timestamp_bytes, payload_bytes);
 }
@@ -289,9 +297,13 @@ static int ksuid_NextKsuidCmd(ClientData clientData, Tcl_Interp *interp, int obj
         Tcl_SetObjResult(interp, Tcl_NewStringObj("missing payload", -1));
         return TCL_ERROR;
     }
-    auto payload = Tcl_GetString(payloadPtr);
+    int payload_length;
+    auto payload = Tcl_GetStringFromObj(payloadPtr, &payload_length);
     unsigned char payload_bytes[PAYLOAD_BYTES];
-    hex_decode(payload, PAYLOAD_BYTES, payload_bytes);
+    if (TCL_OK != hex_decode(payload, payload_length, payload_bytes, PAYLOAD_BYTES)) {
+        Tcl_SetObjResult(interp, Tcl_NewStringObj("invalid hex", -1));
+        return TCL_ERROR;
+    }
 
     auto zero = make_uint128(0, 0);
 
@@ -335,9 +347,13 @@ static int ksuid_PrevKsuidCmd(ClientData clientData, Tcl_Interp *interp, int obj
         Tcl_SetObjResult(interp, Tcl_NewStringObj("missing payload", -1));
         return TCL_ERROR;
     }
-    auto payload = Tcl_GetString(payloadPtr);
+    int payload_length;
+    auto payload = Tcl_GetStringFromObj(payloadPtr, &payload_length);
     unsigned char payload_bytes[PAYLOAD_BYTES];
-    hex_decode(payload, PAYLOAD_BYTES, payload_bytes);
+    if (TCL_OK != hex_decode(payload, payload_length, payload_bytes, PAYLOAD_BYTES)) {
+        Tcl_SetObjResult(interp, Tcl_NewStringObj("invalid hex", -1));
+        return TCL_ERROR;
+    }
 
     auto max = make_uint128(std::numeric_limits<uint64_t>::max(), std::numeric_limits<uint64_t>::max());
 
@@ -359,7 +375,10 @@ static int ksuid_HexEncodeCmd(ClientData clientData, Tcl_Interp *interp, int obj
     int length;
     auto bytes = Tcl_GetByteArrayFromObj(objv[1], &length);
     std::string hex;
-    hex_encode(bytes, length, hex);
+    if (TCL_OK != hex_encode(bytes, length, hex)) {
+        Tcl_SetObjResult(interp, Tcl_NewStringObj("invalid hex", -1));
+        return TCL_ERROR;
+    }
 
     Tcl_SetObjResult(interp, Tcl_NewStringObj(hex.c_str(), hex.length()));
     return TCL_OK;
@@ -372,7 +391,10 @@ static int ksuid_HexDecodeCmd(ClientData clientData, Tcl_Interp *interp, int obj
     int length;
     auto hex = Tcl_GetStringFromObj(objv[1], &length);
     unsigned char bytes[length / 2];
-    hex_decode(hex, length / 2, bytes);
+    if (TCL_OK != hex_decode(hex, length, bytes, length / 2)) {
+        Tcl_SetObjResult(interp, Tcl_NewStringObj("invalid hex", -1));
+        return TCL_ERROR;
+    }
     Tcl_SetObjResult(interp, Tcl_NewByteArrayObj(bytes, length/2));
     return TCL_OK;
 }
