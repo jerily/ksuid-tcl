@@ -13,6 +13,9 @@ find_package(Threads REQUIRED)
 #set(CMAKE_VERBOSE_MAKEFILE ON)
 set(CMAKE_CXX_FLAGS "-DTCL_THREADS -DPROJECT_VERSION=${PROJECT_VERSION} ${CMAKE_CXX_FLAGS}")
 
+enable_testing()
+add_test(NAME AllUnitTests COMMAND tclsh ${CMAKE_CURRENT_SOURCE_DIR}/tests/all.tcl)
+
 add_library(${PROJECT_NAME} MODULE src/library.cc src/base62.cc src/hex.cc src/custom_unt128.cc)
 set_target_properties(${PROJECT_NAME} PROPERTIES POSITION_INDEPENDENT_CODE ON)
 

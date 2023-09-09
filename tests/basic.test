@@ -1,0 +1,32 @@
+package require tcltest
+package require ksuid
+
+namespace import -force ::tcltest::test
+
+::tcltest::configure {*}$argv
+
+test basic-1 {length of ksuid} -body {
+    set ksuid [::ksuid::generate_ksuid]
+    string length $ksuid
+} -result {27}
+
+test basic-2 {generate ksuid, get its parts, create ksuid again from parts and compare} -body {
+    set ksuid [::ksuid::generate_ksuid]
+    set parts [::ksuid::ksuid_to_parts $ksuid]
+    set ksuid_from_parts [::ksuid::parts_to_ksuid $parts]
+    expr {$ksuid eq $ksuid_from_parts}
+} -result {1}
+
+test basic-2a {next of a prev of a ksuid and prev of a next of a ksuid are equal} -body {
+    set ksuid [::ksuid::generate_ksuid]
+    set prev_of_next_ksuid [::ksuid::prev_ksuid [::ksuid::next_ksuid $ksuid]]
+    set next_of_prev_ksuid [::ksuid::next_ksuid [::ksuid::prev_ksuid $ksuid]]
+    expr {$ksuid eq $prev_of_next_ksuid && $ksuid eq $next_of_prev_ksuid}
+} -result {1}
+
+test basic-2b {next of a prev of a ksuid and prev of a next of a ksuid are equal} -body {
+    set ksuid "aWgEPTl1tmebfsQzFP4bxwgy80V"
+    set prev_of_next_ksuid [::ksuid::prev_ksuid [::ksuid::next_ksuid $ksuid]]
+    set next_of_prev_ksuid [::ksuid::next_ksuid [::ksuid::prev_ksuid $ksuid]]
+    expr {$ksuid eq $prev_of_next_ksuid && $ksuid eq $next_of_prev_ksuid}
+} -result {1}

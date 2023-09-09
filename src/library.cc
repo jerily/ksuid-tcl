@@ -29,6 +29,20 @@
                      return TCL_ERROR; \
                  }
 
+#if defined(_WIN32) // Windows is always little endian
+#define IS_BIG_ENDIAN 0
+#elif defined(__linux__) // Linux has a header with endianness macros
+#include <endian.h>
+#define IS_BIG_ENDIAN (__BYTE_ORDER == __BIG_ENDIAN)
+#elif defined(__APPLE__) // Mac OS X has a header with endianness macros
+#include <machine/endian.h>
+#define IS_BIG_ENDIAN (__DARWIN_BYTE_ORDER == __DARWIN_BIG_ENDIAN)
+#else
+// Unknown system, use a generic method
+//#define IS_BIG_ENDIAN (!(*(unsigned char *)&(uint16_t){1}))
+#define IS_BIG_ENDIAN 0
+#endif
+
 static int ksuid_ModuleInitialized;
 
 // KSUIDs are 20 bytes:
@@ -46,6 +60,31 @@ static char MIN_STRING_ENCODED[] = "000000000000000000000000000";
 
 // A string-encoded maximum value for a KSUID
 static char MAX_STRING_ENCODED[] = "aWgEPTl1tmebfsQzFP4bxwgy80V";
+
+static void ksuid_TimestampToBytes(unsigned int x, unsigned char bytes[]) {
+#if IS_BIG_ENDIAN
+#else
+    // Extract each byte of x and store it in the array in reverse order
+    bytes[0] = (x >> 24) & 0xFF; // The most significant byte
+    bytes[1] = (x >> 16) & 0xFF; // The second most significant byte
+    bytes[2] = (x >> 8) & 0xFF; // The third most significant byte
+    bytes[3] = x & 0xFF; // The least significant byte
+#endif
+}
+
+unsigned int ksuid_BytesToTimestamp(const unsigned char bytes[]) {
+#if IS_BIG_ENDIAN
+#else
+    unsigned int result = 0;
+    result |= (bytes[0] << 24); // Shift the most significant byte left by 24 bits and add it to the result
+    result |= (bytes[1] << 16); // Shift the second most significant byte left by 16 bits and add it to the result
+    result |= (bytes[2] << 8); // Shift the third most significant byte left by 8 bits and add it to the result
+    result |= bytes[3]; // Add the least significant byte to the result
+    return result;
+#endif
+}
+
+
 
 static int ksuid_ConcatTimestampAndPayload(Tcl_Interp *interp, const unsigned char timestamp_bytes[],
                                            const unsigned char payload_bytes[]) {
@@ -65,13 +104,6 @@ static int ksuid_ConcatTimestampAndPayload(Tcl_Interp *interp, const unsigned ch
 
     Tcl_SetObjResult(interp, Tcl_NewStringObj(base62_str.c_str(), base62_str.length()));
     return TCL_OK;
-}
-
-static void ksuid_TimestampToBytes(long timestamp, unsigned char timestamp_bytes[]) {
-    // Convert the timestamp to bytes and store them in the vector
-    for (int i = 0; i < TIMESTAMP_BYTES; i++) {
-        timestamp_bytes[TIMESTAMP_BYTES - i - 1] = (timestamp >> (i * 8)) & 0xFF;
-    }
 }
 
 static int ksuid_GenerateKsuidCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
@@ -96,7 +128,7 @@ static int ksuid_GenerateKsuidCmd(ClientData clientData, Tcl_Interp *interp, int
     // Convert the duration to milliseconds
     auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(since_epoch);
     // Get the count of milliseconds as an integer
-    long timestamp = millis.count() / 1000 - EPOCH;
+    unsigned int timestamp = millis.count() / 1000 - EPOCH;
 
     // ---- Convert the timestamp to bytes ----
     // Create a vector of size 4 to store the timestamp bytes
@@ -137,12 +169,9 @@ static int ksuid_KsuidToParts(Tcl_Interp *interp, const char * ksuid, Tcl_Obj **
     base62_decode(ksuid_bytes, PAD_TO_LENGTH, timestamp_and_payload_bytes, TOTAL_BYTES);
 
     // ---- Convert the timestamp bytes to a long ----
-    long timestamp = 0;
-    for (int i = 0; i < TIMESTAMP_BYTES; i++) {
-        timestamp |= timestamp_and_payload_bytes[TIMESTAMP_BYTES - i - 1] << (i * 8);
-    }
-    timestamp += EPOCH;
-    timestamp *= 1000;
+    unsigned int timestamp = ksuid_BytesToTimestamp(timestamp_and_payload_bytes);
+//    timestamp += EPOCH;
+//    timestamp *= 1000;
 
     // ---- Convert the payload bytes to a hex string ----
     std::string hex;
@@ -150,6 +179,7 @@ static int ksuid_KsuidToParts(Tcl_Interp *interp, const char * ksuid, Tcl_Obj **
 
     // ---- Return the timestamp and payload ----
     Tcl_Obj *dictPtr = Tcl_NewDictObj();
+//    Tcl_DictObjPut(interp, dictPtr, Tcl_NewStringObj("epoch", -1), Tcl_NewLongObj(EPOCH));
     Tcl_DictObjPut(interp, dictPtr, Tcl_NewStringObj("timestamp", -1), Tcl_NewLongObj(timestamp));
     Tcl_DictObjPut(interp, dictPtr, Tcl_NewStringObj("payload", -1), Tcl_NewStringObj(hex.c_str(), hex.length()));
     *resultPtr = dictPtr;
@@ -194,8 +224,8 @@ static int ksuid_PartsToKsuidCmd(ClientData clientData, Tcl_Interp *interp, int 
     if (TCL_OK != Tcl_GetLongFromObj(interp, timestampPtr, &timestamp)) {
         return TCL_ERROR;
     }
-    timestamp /= 1000;
-    timestamp -= EPOCH;
+//    timestamp /= 1000;
+//    timestamp -= EPOCH;
 
     // Create a vector of size 4 to store the timestamp bytes
     // Convert the timestamp to bytes and store them in the vector
@@ -245,8 +275,8 @@ static int ksuid_NextKsuidCmd(ClientData clientData, Tcl_Interp *interp, int obj
     if (TCL_OK != Tcl_GetLongFromObj(interp, timestampPtr, &timestamp)) {
         return TCL_ERROR;
     }
-    timestamp /= 1000;
-    timestamp -= EPOCH;
+//    timestamp /= 1000;
+//    timestamp -= EPOCH;
 
     unsigned char timestamp_bytes[TIMESTAMP_BYTES];
     ksuid_TimestampToBytes(timestamp, timestamp_bytes);
@@ -271,7 +301,6 @@ static int ksuid_NextKsuidCmd(ClientData clientData, Tcl_Interp *interp, int obj
 	}
 
     return ksuid_KsuidFromTimestampAndPayload(interp, t, v);
-//    return ksuid_ConcatTimestampAndPayload(interp, timestamp_bytes, payload_bytes);
 }
 
 static int ksuid_PrevKsuidCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
@@ -294,8 +323,8 @@ static int ksuid_PrevKsuidCmd(ClientData clientData, Tcl_Interp *interp, int obj
     if (TCL_OK != Tcl_GetLongFromObj(interp, timestampPtr, &timestamp)) {
         return TCL_ERROR;
     }
-    timestamp /= 1000;
-    timestamp -= EPOCH;
+//    timestamp /= 1000;
+//    timestamp -= EPOCH;
 
     unsigned char timestamp_bytes[TIMESTAMP_BYTES];
     ksuid_TimestampToBytes(timestamp, timestamp_bytes);

@@ -28,5 +28,6 @@ if { [::ksuid::hex_decode $hex_of_hello_world] eq "hello world" } {
 }
 
 
+puts prev_of_zero=[::ksuid::prev_ksuid "000000000000000000000000000"]
 puts next_of_max=[::ksuid::next_ksuid "aWgEPTl1tmebfsQzFP4bxwgy80V"]
 
