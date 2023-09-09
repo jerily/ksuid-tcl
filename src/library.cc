@@ -12,6 +12,7 @@
 #include "library.h"
 #include "base62.h"
 #include "hex.h"
+#include "custom_uint128.h"
 
 #define XSTR(s) STR(s)
 #define STR(s) #s
@@ -30,32 +31,47 @@
 
 static int ksuid_ModuleInitialized;
 
+// KSUIDs are 20 bytes:
+//  00-03 byte: uint32 BE UTC timestamp with custom epoch
+//  04-19 byte: random "payload"
+
 static int EPOCH = 1400000000;
 static int PAYLOAD_BYTES = 16;
 static int TIMESTAMP_BYTES = 4;
 static int TOTAL_BYTES = TIMESTAMP_BYTES + PAYLOAD_BYTES;
 static int PAD_TO_LENGTH = 27;
 
-static int ksuid_ConcatTimestampAndPayload(Tcl_Interp *interp, std::vector<unsigned char> timestamp_bytes,
-                                           std::vector<unsigned char> payload_bytes) {
+// A string-encoded minimum value for a KSUID
+static char MIN_STRING_ENCODED[] = "000000000000000000000000000";
+
+// A string-encoded maximum value for a KSUID
+static char MAX_STRING_ENCODED[] = "aWgEPTl1tmebfsQzFP4bxwgy80V";
+
+static int ksuid_ConcatTimestampAndPayload(Tcl_Interp *interp, const unsigned char timestamp_bytes[],
+                                           const unsigned char payload_bytes[]) {
 
     // ---- Concatenate the timestamp and payload bytes ----
     // Create a vector of size 20 to store the timestamp and payload bytes
-    std::vector<unsigned char> timestamp_and_payload_bytes(TOTAL_BYTES);
+    unsigned char timestamp_and_payload_bytes[TOTAL_BYTES];
     // Copy the timestamp bytes to the vector
-    std::copy(timestamp_bytes.begin(), timestamp_bytes.end(), timestamp_and_payload_bytes.begin());
+    std::copy(timestamp_bytes, timestamp_bytes + TIMESTAMP_BYTES, timestamp_and_payload_bytes);
     // Copy the payload bytes to the vector
-    std::copy(payload_bytes.begin(), payload_bytes.end(), timestamp_and_payload_bytes.begin() + TIMESTAMP_BYTES);
+    std::copy(payload_bytes, payload_bytes + PAYLOAD_BYTES, timestamp_and_payload_bytes + TIMESTAMP_BYTES);
 
     // ---- Base62 encode with fixed length ----
-    std::vector<unsigned char> base62(PAD_TO_LENGTH);
-    if (TCL_OK != base62_encode(interp, timestamp_and_payload_bytes, base62)) {
-        return TCL_ERROR;
-    }
-    std::string base62_str(base62.begin(), base62.end());
+    unsigned char base62[PAD_TO_LENGTH];
+    base62_encode(timestamp_and_payload_bytes, TOTAL_BYTES, base62, PAD_TO_LENGTH);
+    std::string base62_str(base62, base62 + PAD_TO_LENGTH);
 
     Tcl_SetObjResult(interp, Tcl_NewStringObj(base62_str.c_str(), base62_str.length()));
     return TCL_OK;
+}
+
+static void ksuid_TimestampToBytes(long timestamp, unsigned char timestamp_bytes[]) {
+    // Convert the timestamp to bytes and store them in the vector
+    for (int i = 0; i < TIMESTAMP_BYTES; i++) {
+        timestamp_bytes[TIMESTAMP_BYTES - i - 1] = (timestamp >> (i * 8)) & 0xFF;
+    }
 }
 
 static int ksuid_GenerateKsuidCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
@@ -67,11 +83,10 @@ static int ksuid_GenerateKsuidCmd(ClientData clientData, Tcl_Interp *interp, int
     std::random_device rd;
     std::mt19937 mt(rd());
     // Create a uniform_int_distribution object that generates unsigned char values between 0 and 255
-    std::uniform_int_distribution<unsigned char> dist(0, 255);
-    // Create a vector of size 16 to store the random bytes
-    std::vector<unsigned char> payload_bytes(PAYLOAD_BYTES);
-    // Fill the vector with random bytes using the generate_n algorithm
-    std::generate_n(payload_bytes.begin(), payload_bytes.size(), [&](){ return dist(mt); });
+    std::uniform_int_distribution<uint64_t> dist(0, 18446744073709551615ULL);
+    custom_uint128_t u = make_uint128(dist(mt), dist(mt));
+    unsigned char payload_bytes[PAYLOAD_BYTES];
+    uint128_to_bytes(u, payload_bytes);
 
     // ---- Generate the timestamp ----
     // Get the current system time
@@ -85,26 +100,15 @@ static int ksuid_GenerateKsuidCmd(ClientData clientData, Tcl_Interp *interp, int
 
     // ---- Convert the timestamp to bytes ----
     // Create a vector of size 4 to store the timestamp bytes
-    std::vector<unsigned char> timestamp_bytes(TIMESTAMP_BYTES);
-    // Convert the timestamp to bytes and store them in the vector
-    for (int i = 0; i < TIMESTAMP_BYTES; i++) {
-        timestamp_bytes[TIMESTAMP_BYTES - i - 1] = (timestamp >> (i * 8)) & 0xFF;
-    }
+    unsigned char timestamp_bytes[TIMESTAMP_BYTES];
+    ksuid_TimestampToBytes(timestamp, timestamp_bytes);
 
     return ksuid_ConcatTimestampAndPayload(interp, timestamp_bytes, payload_bytes);
 }
 
-static int ksuid_KsuidToPartsCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
-    DBG(fprintf(stderr, "KsuidToPartsCmd\n"));
-    CheckArgs(2, 2, 1, "ksuid");
-
-    // ---- Convert the ksuid to bytes ----
-
-    // Get the ksuid from the arguments
-    auto ksuid = Tcl_GetString(objv[1]);
-
+static int ksuid_KsuidToParts(Tcl_Interp *interp, const char * ksuid, Tcl_Obj **resultPtr) {
     // Create a vector of size 27 to store the ksuid bytes
-    std::vector<unsigned char> ksuid_bytes(PAD_TO_LENGTH);
+    unsigned char ksuid_bytes[PAD_TO_LENGTH];
 
     // Decode each character to a byte
     for (int i = 0; i < PAD_TO_LENGTH; i++) {
@@ -129,10 +133,8 @@ static int ksuid_KsuidToPartsCmd(ClientData clientData, Tcl_Interp *interp, int 
     }
 
     // ---- Base62 decode ----
-    std::vector<unsigned char> timestamp_and_payload_bytes(TOTAL_BYTES);
-    if (TCL_OK != base62_decode(interp, ksuid_bytes, timestamp_and_payload_bytes)) {
-        return TCL_ERROR;
-    }
+    unsigned char timestamp_and_payload_bytes[TOTAL_BYTES];
+    base62_decode(ksuid_bytes, PAD_TO_LENGTH, timestamp_and_payload_bytes, TOTAL_BYTES);
 
     // ---- Convert the timestamp bytes to a long ----
     long timestamp = 0;
@@ -144,14 +146,29 @@ static int ksuid_KsuidToPartsCmd(ClientData clientData, Tcl_Interp *interp, int 
 
     // ---- Convert the payload bytes to a hex string ----
     std::string hex;
-    if (TCL_OK != hex_encode(interp, timestamp_and_payload_bytes.data() + TIMESTAMP_BYTES, PAYLOAD_BYTES, hex)) {
-        return TCL_ERROR;
-    }
+    hex_encode(timestamp_and_payload_bytes + TIMESTAMP_BYTES, PAYLOAD_BYTES, hex);
 
     // ---- Return the timestamp and payload ----
     Tcl_Obj *dictPtr = Tcl_NewDictObj();
     Tcl_DictObjPut(interp, dictPtr, Tcl_NewStringObj("timestamp", -1), Tcl_NewLongObj(timestamp));
     Tcl_DictObjPut(interp, dictPtr, Tcl_NewStringObj("payload", -1), Tcl_NewStringObj(hex.c_str(), hex.length()));
+    *resultPtr = dictPtr;
+    return TCL_OK;
+}
+
+static int ksuid_KsuidToPartsCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
+    DBG(fprintf(stderr, "KsuidToPartsCmd\n"));
+    CheckArgs(2, 2, 1, "ksuid");
+
+    // ---- Convert the ksuid to bytes ----
+
+    // Get the ksuid from the arguments
+    auto ksuid = Tcl_GetString(objv[1]);
+
+    Tcl_Obj *dictPtr;
+    if (TCL_OK != ksuid_KsuidToParts(interp, ksuid, &dictPtr)) {
+        return TCL_ERROR;
+    }
     Tcl_SetObjResult(interp, dictPtr);
     return TCL_OK;
 }
@@ -181,7 +198,7 @@ static int ksuid_PartsToKsuidCmd(ClientData clientData, Tcl_Interp *interp, int 
     timestamp -= EPOCH;
 
     // Create a vector of size 4 to store the timestamp bytes
-    std::vector<unsigned char> timestamp_bytes(TIMESTAMP_BYTES);
+    unsigned char timestamp_bytes[TIMESTAMP_BYTES];
     // Convert the timestamp to bytes and store them in the vector
     for (int i = 0; i < TIMESTAMP_BYTES; i++) {
         timestamp_bytes[TIMESTAMP_BYTES - i - 1] = (timestamp >> (i * 8)) & 0xFF;
@@ -189,12 +206,123 @@ static int ksuid_PartsToKsuidCmd(ClientData clientData, Tcl_Interp *interp, int 
 
     // ---- Convert the payload to bytes ----
     auto payload = Tcl_GetString(payloadPtr);
-    std::vector<unsigned char> payload_bytes(PAYLOAD_BYTES);
-    if (TCL_OK != hex_decode(interp, payload, payload_bytes)) {
+    unsigned char payload_bytes[PAYLOAD_BYTES];
+    hex_decode(payload, PAYLOAD_BYTES, payload_bytes);
+
+    return ksuid_ConcatTimestampAndPayload(interp, timestamp_bytes, payload_bytes);
+}
+
+
+static int ksuid_KsuidFromTimestampAndPayload(Tcl_Interp *pInterp, long t, custom_uint128_t v) {
+
+    // ---- Convert the timestamp to bytes ----
+    // Create a vector of size 4 to store the timestamp bytes
+    unsigned char timestamp_bytes[TIMESTAMP_BYTES];
+    ksuid_TimestampToBytes(t, timestamp_bytes);
+
+    // ---- Convert the payload to bytes ----
+    unsigned char payload_bytes[PAYLOAD_BYTES];
+    uint128_to_bytes(v, payload_bytes);
+
+    return ksuid_ConcatTimestampAndPayload(pInterp, timestamp_bytes, payload_bytes);
+}
+
+static int ksuid_NextKsuidCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
+    DBG(fprintf(stderr, "NextKsuidCmd\n"));
+    CheckArgs(2, 2, 1, "ksuid");
+
+    auto ksuid = Tcl_GetString(objv[1]);
+
+    Tcl_Obj *dictPtr;
+    if (TCL_OK != ksuid_KsuidToParts(interp, ksuid, &dictPtr)) {
         return TCL_ERROR;
     }
 
-    return ksuid_ConcatTimestampAndPayload(interp, timestamp_bytes, payload_bytes);
+    Tcl_Obj *timestampPtr;
+    if (TCL_OK != Tcl_DictObjGet(interp, dictPtr, Tcl_NewStringObj("timestamp", -1), &timestampPtr)) {
+        Tcl_SetObjResult(interp, Tcl_NewStringObj("missing timestamp", -1));
+        return TCL_ERROR;
+    }
+    long timestamp;
+    if (TCL_OK != Tcl_GetLongFromObj(interp, timestampPtr, &timestamp)) {
+        return TCL_ERROR;
+    }
+    timestamp /= 1000;
+    timestamp -= EPOCH;
+
+    unsigned char timestamp_bytes[TIMESTAMP_BYTES];
+    ksuid_TimestampToBytes(timestamp, timestamp_bytes);
+
+    Tcl_Obj *payloadPtr;
+    if (TCL_OK != Tcl_DictObjGet(interp, dictPtr, Tcl_NewStringObj("payload", -1), &payloadPtr)) {
+        Tcl_SetObjResult(interp, Tcl_NewStringObj("missing payload", -1));
+        return TCL_ERROR;
+    }
+    auto payload = Tcl_GetString(payloadPtr);
+    unsigned char payload_bytes[PAYLOAD_BYTES];
+    hex_decode(payload, PAYLOAD_BYTES, payload_bytes);
+
+    auto zero = make_uint128(0, 0);
+
+	auto t = timestamp;
+	auto u = make_uint128_from_bytes(payload_bytes);
+	auto v = incr128(u);
+
+	if (0 == cmp128(v, zero)) { // overflow
+		t++;
+	}
+
+    return ksuid_KsuidFromTimestampAndPayload(interp, t, v);
+//    return ksuid_ConcatTimestampAndPayload(interp, timestamp_bytes, payload_bytes);
+}
+
+static int ksuid_PrevKsuidCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
+    DBG(fprintf(stderr, "PrevKsuidCmd\n"));
+    CheckArgs(2, 2, 1, "ksuid");
+
+    auto ksuid = Tcl_GetString(objv[1]);
+
+    Tcl_Obj *dictPtr;
+    if (TCL_OK != ksuid_KsuidToParts(interp, ksuid, &dictPtr)) {
+        return TCL_ERROR;
+    }
+
+    Tcl_Obj *timestampPtr;
+    if (TCL_OK != Tcl_DictObjGet(interp, dictPtr, Tcl_NewStringObj("timestamp", -1), &timestampPtr)) {
+        Tcl_SetObjResult(interp, Tcl_NewStringObj("missing timestamp", -1));
+        return TCL_ERROR;
+    }
+    long timestamp;
+    if (TCL_OK != Tcl_GetLongFromObj(interp, timestampPtr, &timestamp)) {
+        return TCL_ERROR;
+    }
+    timestamp /= 1000;
+    timestamp -= EPOCH;
+
+    unsigned char timestamp_bytes[TIMESTAMP_BYTES];
+    ksuid_TimestampToBytes(timestamp, timestamp_bytes);
+
+    Tcl_Obj *payloadPtr;
+    if (TCL_OK != Tcl_DictObjGet(interp, dictPtr, Tcl_NewStringObj("payload", -1), &payloadPtr)) {
+        Tcl_SetObjResult(interp, Tcl_NewStringObj("missing payload", -1));
+        return TCL_ERROR;
+    }
+    auto payload = Tcl_GetString(payloadPtr);
+    unsigned char payload_bytes[PAYLOAD_BYTES];
+    hex_decode(payload, PAYLOAD_BYTES, payload_bytes);
+
+    auto zero = make_uint128(0, 0);
+
+    auto t = timestamp;
+    auto u = make_uint128_from_bytes(payload_bytes);
+    auto v = decr128(u);
+
+    if (0 == cmp128(v, zero)) { // overflow
+        t++;
+    }
+
+    return ksuid_KsuidFromTimestampAndPayload(interp, t, v);
+//    return ksuid_ConcatTimestampAndPayload(interp, timestamp_bytes, payload_bytes);
 }
 
 static int ksuid_HexEncodeCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
@@ -204,9 +332,8 @@ static int ksuid_HexEncodeCmd(ClientData clientData, Tcl_Interp *interp, int obj
     int length;
     auto bytes = Tcl_GetByteArrayFromObj(objv[1], &length);
     std::string hex;
-    if (TCL_OK != hex_encode(interp, bytes, length, hex)) {
-        return TCL_ERROR;
-    }
+    hex_encode(bytes, length, hex);
+
     Tcl_SetObjResult(interp, Tcl_NewStringObj(hex.c_str(), hex.length()));
     return TCL_OK;
 }
@@ -217,11 +344,9 @@ static int ksuid_HexDecodeCmd(ClientData clientData, Tcl_Interp *interp, int obj
 
     int length;
     auto hex = Tcl_GetStringFromObj(objv[1], &length);
-    std::vector<unsigned char> bytes(length / 2);
-    if (TCL_OK != hex_decode(interp, hex, bytes)) {
-        return TCL_ERROR;
-    }
-    Tcl_SetObjResult(interp, Tcl_NewByteArrayObj(bytes.data(), bytes.size()));
+    unsigned char bytes[length / 2];
+    hex_decode(hex, length / 2, bytes);
+    Tcl_SetObjResult(interp, Tcl_NewByteArrayObj(bytes, length/2));
     return TCL_OK;
 }
 
@@ -247,6 +372,8 @@ int Ksuid_Init(Tcl_Interp *interp) {
     Tcl_CreateObjCommand(interp, "::ksuid::generate_ksuid", ksuid_GenerateKsuidCmd, nullptr, nullptr);
     Tcl_CreateObjCommand(interp, "::ksuid::ksuid_to_parts", ksuid_KsuidToPartsCmd, nullptr, nullptr);
     Tcl_CreateObjCommand(interp, "::ksuid::parts_to_ksuid", ksuid_PartsToKsuidCmd, nullptr, nullptr);
+    Tcl_CreateObjCommand(interp, "::ksuid::next_ksuid", ksuid_NextKsuidCmd, nullptr, nullptr);
+    Tcl_CreateObjCommand(interp, "::ksuid::prev_ksuid", ksuid_PrevKsuidCmd, nullptr, nullptr);
     Tcl_CreateObjCommand(interp, "::ksuid::hex_encode", ksuid_HexEncodeCmd, nullptr, nullptr);
     Tcl_CreateObjCommand(interp, "::ksuid::hex_decode", ksuid_HexDecodeCmd, nullptr, nullptr);
 

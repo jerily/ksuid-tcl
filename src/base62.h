@@ -4,7 +4,7 @@
 #include <tcl.h>
 #include <vector>
 
-int base62_encode(Tcl_Interp *interp, const std::vector<unsigned char>& timestamp_and_payload_bytes, std::vector<unsigned char>& result);
-int base62_decode(Tcl_Interp *interp, const std::vector<unsigned char>& base62_encoded_bytes, std::vector<unsigned char>& result);
+void base62_encode(unsigned char input[], int input_length, unsigned char output[], int output_length);
+void base62_decode(unsigned char base62_encoded_bytes[], int input_length, unsigned char output[], int output_length);
 
 #endif //KSUID_TCL_BASE62_H

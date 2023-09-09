@@ -2,6 +2,8 @@ package require ksuid
 
 set ksuid [::ksuid::generate_ksuid]
 puts ksuid=$ksuid
+puts prev_of_next_ksuid=[::ksuid::prev_ksuid [::ksuid::next_ksuid $ksuid]]
+puts next_of_prev_ksuid=[::ksuid::next_ksuid [::ksuid::prev_ksuid $ksuid]]
 puts ksuid_length=[string length $ksuid]
 
 set parts [::ksuid::ksuid_to_parts $ksuid]
@@ -25,4 +27,3 @@ if { [::ksuid::hex_decode $hex_of_hello_world] eq "hello world" } {
 } else {
     puts "hex_decode failed"
 }
-

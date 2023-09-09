@@ -2,19 +2,16 @@
 
 static char BASE_62_CHARACTERS[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
-int base62_encode(Tcl_Interp *interp, const std::vector<unsigned char> &timestamp_and_payload_bytes,
-                  std::vector<unsigned char> &result) {
-    if (result.size() < timestamp_and_payload_bytes.size()) {
-        Tcl_SetObjResult(interp, Tcl_NewStringObj("bytes exceeds expected length", -1));
-        return TCL_ERROR;
-    }
+void base62_encode(unsigned char timestamp_and_payload_bytes[], int input_length,
+                  unsigned char output[], int output_length) {
 
-    auto offset = result.size();
+    auto offset = output_length;
     auto input = timestamp_and_payload_bytes;
-    while (!input.empty()) {
+    while (input_length > 0) {
         std::vector<unsigned char> quotients;
         unsigned long remainder = 0;
-        for (auto b: input) {
+        for (int i = 0; i < input_length; i++) {
+            auto b = input[i];
             auto accumulator = (remainder << 8) + b;
             auto quotient = accumulator / 62;
             remainder = accumulator % 62;
@@ -22,28 +19,25 @@ int base62_encode(Tcl_Interp *interp, const std::vector<unsigned char> &timestam
                 quotients.push_back(quotient);
             }
         }
-        result[--offset] = BASE_62_CHARACTERS[remainder];
-        input = quotients;
+        output[--offset] = BASE_62_CHARACTERS[remainder];
+        std::copy(quotients.begin(), quotients.end(), input);
+        input_length = quotients.size();
     }
 
     while (offset > 0) {
-        result[--offset] = BASE_62_CHARACTERS[0];
+        output[--offset] = BASE_62_CHARACTERS[0];
     }
 
-// copy the result to the output
-    std::copy(result.begin(), result.end(), result.begin());
-
-    return TCL_OK;
 }
 
-int base62_decode(Tcl_Interp *interp, const std::vector<unsigned char> &base62_encoded_bytes,
-                  std::vector<unsigned char> &result) {
-    auto offset = result.size();
+void base62_decode(unsigned char base62_encoded_bytes[], int input_length, unsigned char output[], int output_length) {
+    auto offset = output_length;
     auto input = base62_encoded_bytes;
-    while (!input.empty()) {
+    while (input_length > 0) {
         std::vector<unsigned char> quotients;
         unsigned long remainder = 0;
-        for (auto b: input) {
+        for (int i = 0; i < input_length; i++) {
+            auto b = input[i];
             auto accumulator = (remainder * 62) + b;
             auto quotient = accumulator / 256;
             remainder = accumulator % 256;
@@ -51,16 +45,13 @@ int base62_decode(Tcl_Interp *interp, const std::vector<unsigned char> &base62_e
                 quotients.push_back(quotient);
             }
         }
-        result[--offset] = remainder;
-        input = quotients;
+        output[--offset] = remainder;
+        std::copy(quotients.begin(), quotients.end(), input);
+        input_length = quotients.size();
     }
 
     while (offset > 0) {
-        result[--offset] = 0;
+        output[--offset] = 0;
     }
 
-// copy the result to the output
-    std::copy(result.begin(), result.end(), result.begin());
-
-    return TCL_OK;
 }
