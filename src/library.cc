@@ -82,12 +82,11 @@ static int ksuid_GenerateKsuidCmd(ClientData clientData, Tcl_Interp *interp, int
     // Create a random device and a mt19937 engine
     std::random_device rd;
     std::mt19937 mt(rd());
-    // Create a uniform_int_distribution object that generates unsigned char values between 0 and 255
-    std::uniform_int_distribution<uint64_t> dist(0, 255);
+    // Create a uniform_int_distribution object that generates unsigned char values between 0 and uint64_t max.
+    std::uniform_int_distribution<uint64_t> dist(0, 18446744073709551615ULL);
+    custom_uint128_t v = make_uint128(dist(mt), dist(mt));
     unsigned char payload_bytes[PAYLOAD_BYTES];
-    for (int i = 0; i < PAYLOAD_BYTES; i++) {
-        payload_bytes[i] = dist(mt);
-    }
+    uint128_to_bytes(v, payload_bytes);
 
     // ---- Generate the timestamp ----
     // Get the current system time
@@ -199,11 +198,9 @@ static int ksuid_PartsToKsuidCmd(ClientData clientData, Tcl_Interp *interp, int 
     timestamp -= EPOCH;
 
     // Create a vector of size 4 to store the timestamp bytes
-    unsigned char timestamp_bytes[TIMESTAMP_BYTES];
     // Convert the timestamp to bytes and store them in the vector
-    for (int i = 0; i < TIMESTAMP_BYTES; i++) {
-        timestamp_bytes[TIMESTAMP_BYTES - i - 1] = (timestamp >> (i * 8)) & 0xFF;
-    }
+    unsigned char timestamp_bytes[TIMESTAMP_BYTES];
+    ksuid_TimestampToBytes(timestamp, timestamp_bytes);
 
     // ---- Convert the payload to bytes ----
     auto payload = Tcl_GetString(payloadPtr);
