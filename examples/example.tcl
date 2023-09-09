@@ -21,9 +21,12 @@ if { $hex_of_hello_world eq "68656c6c6f20776f726c64" } {
 } else {
     puts "hex_encode failed"
 }
-
 if { [::ksuid::hex_decode $hex_of_hello_world] eq "hello world" } {
     puts "hex_decode works"
 } else {
     puts "hex_decode failed"
 }
+
+
+puts next_of_max=[::ksuid::next_ksuid "aWgEPTl1tmebfsQzFP4bxwgy80V"]
+

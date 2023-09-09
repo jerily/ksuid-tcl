@@ -83,10 +83,11 @@ static int ksuid_GenerateKsuidCmd(ClientData clientData, Tcl_Interp *interp, int
     std::random_device rd;
     std::mt19937 mt(rd());
     // Create a uniform_int_distribution object that generates unsigned char values between 0 and 255
-    std::uniform_int_distribution<uint64_t> dist(0, 18446744073709551615ULL);
-    custom_uint128_t u = make_uint128(dist(mt), dist(mt));
+    std::uniform_int_distribution<uint64_t> dist(0, 255);
     unsigned char payload_bytes[PAYLOAD_BYTES];
-    uint128_to_bytes(u, payload_bytes);
+    for (int i = 0; i < PAYLOAD_BYTES; i++) {
+        payload_bytes[i] = dist(mt);
+    }
 
     // ---- Generate the timestamp ----
     // Get the current system time
