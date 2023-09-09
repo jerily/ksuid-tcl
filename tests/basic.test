@@ -53,3 +53,54 @@ test error-4 {invalid hex} -body {
     set d [dict create timestamp 0 payload 00]
     ::ksuid::parts_to_ksuid $d
 } -returnCodes error -result {invalid hex}
+
+test error-5 {invalid timestamp} -body {
+    set d [dict create timestamp abc payload ""]
+    ::ksuid::parts_to_ksuid $d
+} -returnCodes error -result {expected integer but got "abc"}
+
+test error-5 {invalid hex} -body {
+    set d [dict create timestamp 0 payload ""]
+    ::ksuid::parts_to_ksuid $d
+} -returnCodes error -result {invalid hex}
+
+test correct-parts-1 {check correct parts} -body {
+    set d [dict create timestamp 294295716 payload "5b4bd92eeb34c91060ebd36a32738f03"]
+    ::ksuid::parts_to_ksuid $d
+} -result {2VB3bNOnJhCPqYfm9UQwV90tyTb}
+
+test correct-parts-2 {check correct parts} -body {
+    set d [dict create timestamp 294295845 payload "2e6ab5cfe184cf97c5db875c5f6b3570"]
+    ::ksuid::parts_to_ksuid $d
+} -result {2VB3rZ7VN8syq2WsQDdWt6DdvSi}
+
+proc sleep {millis} {
+    after $millis set stop_wait &
+    vwait stop_wait
+}
+
+test compare-ksuids-1 {compare ksuids} -body {
+    set ksuid1 [::ksuid::generate_ksuid]
+
+    sleep 2000
+
+    set ksuid2 [::ksuid::generate_ksuid]
+    expr {$ksuid1 ne $ksuid2 && $ksuid1 < $ksuid2}
+} -result {1}
+
+
+test compare-ksuids-2 {compare ksuid timestamps} -body {
+    set ksuid1 [::ksuid::generate_ksuid]
+
+    sleep 2000
+
+    set ksuid2 [::ksuid::generate_ksuid]
+
+    set parts1 [::ksuid::ksuid_to_parts $ksuid1]
+    set parts2 [::ksuid::ksuid_to_parts $ksuid2]
+
+    set timestamp1 [dict get $parts1 timestamp]
+    set timestamp2 [dict get $parts2 timestamp]
+
+    expr {$timestamp1 < $timestamp2}
+} -result {1}
