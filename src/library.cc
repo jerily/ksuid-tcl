@@ -9,6 +9,7 @@
 #include <vector>
 #include <algorithm>
 #include <chrono>
+#include <limits>
 #include "library.h"
 #include "base62.h"
 #include "hex.h"
@@ -115,7 +116,7 @@ static int ksuid_GenerateKsuidCmd(ClientData clientData, Tcl_Interp *interp, int
     std::random_device rd;
     std::mt19937 mt(rd());
     // Create a uniform_int_distribution object that generates unsigned char values between 0 and uint64_t max.
-    std::uniform_int_distribution<uint64_t> dist(0, 18446744073709551615ULL);
+    std::uniform_int_distribution<uint64_t> dist(0, std::numeric_limits<uint64_t>::max());
     custom_uint128_t v = make_uint128(dist(mt), dist(mt));
     unsigned char payload_bytes[PAYLOAD_BYTES];
     uint128_to_bytes(v, payload_bytes);
@@ -338,18 +339,17 @@ static int ksuid_PrevKsuidCmd(ClientData clientData, Tcl_Interp *interp, int obj
     unsigned char payload_bytes[PAYLOAD_BYTES];
     hex_decode(payload, PAYLOAD_BYTES, payload_bytes);
 
-    auto zero = make_uint128(0, 0);
+    auto max = make_uint128(std::numeric_limits<uint64_t>::max(), std::numeric_limits<uint64_t>::max());
 
     auto t = timestamp;
     auto u = make_uint128_from_bytes(payload_bytes);
     auto v = decr128(u);
 
-    if (0 == cmp128(v, zero)) { // overflow
-        t++;
+    if (0 == cmp128(v, max)) { // overflow
+        t--;
     }
 
     return ksuid_KsuidFromTimestampAndPayload(interp, t, v);
-//    return ksuid_ConcatTimestampAndPayload(interp, timestamp_bytes, payload_bytes);
 }
 
 static int ksuid_HexEncodeCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
