@@ -146,35 +146,11 @@ static int ksuid_GenerateKsuidCmd(ClientData clientData, Tcl_Interp *interp, int
     return ksuid_ConcatTimestampAndPayload(interp, timestamp_bytes, payload_bytes);
 }
 
-static int ksuid_KsuidToParts(Tcl_Interp *interp, const char * ksuid, Tcl_Obj **resultPtr) {
-    // Create a vector of size 27 to store the ksuid bytes
-    unsigned char ksuid_bytes[PAD_TO_LENGTH];
-
-    // Decode each character to a byte
-    for (int i = 0; i < PAD_TO_LENGTH; i++) {
-        // Get the character
-        auto c = ksuid[i];
-
-        // Convert the character to an index
-        int index;
-        if (c >= '0' && c <= '9') {
-            index = c - 48;
-        } else if (c >= 'A' && c <= 'Z') {
-            index = c - 55;
-        } else if (c >= 'a' && c <= 'z') {
-            index = c - 61;
-        } else {
-            Tcl_SetObjResult(interp, Tcl_NewStringObj("invalid character", -1));
-            return TCL_ERROR;
-        }
-
-        // Store the index as a byte
-        ksuid_bytes[i] = index;
-    }
+static int ksuid_KsuidToParts(Tcl_Interp *interp, const unsigned char * ksuid, Tcl_Obj **resultPtr) {
 
     // ---- Base62 decode ----
     unsigned char timestamp_and_payload_bytes[TOTAL_BYTES];
-    if (TCL_OK != base62_decode(ksuid_bytes, PAD_TO_LENGTH, timestamp_and_payload_bytes, TOTAL_BYTES)) {
+    if (TCL_OK != base62_decode(ksuid, timestamp_and_payload_bytes)) {
         Tcl_SetObjResult(interp, Tcl_NewStringObj("invalid base62", -1));
         return TCL_ERROR;
     }
@@ -204,7 +180,12 @@ static int ksuid_KsuidToPartsCmd(ClientData clientData, Tcl_Interp *interp, int 
     // ---- Convert the ksuid to bytes ----
 
     // Get the ksuid from the arguments
-    auto ksuid = Tcl_GetString(objv[1]);
+    int length;
+    auto ksuid = (const unsigned char *) Tcl_GetStringFromObj(objv[1], &length);
+    if (length != PAD_TO_LENGTH) {
+        Tcl_SetObjResult(interp, Tcl_NewStringObj("invalid ksuid", -1));
+        return TCL_ERROR;
+    }
 
     Tcl_Obj *dictPtr;
     if (TCL_OK != ksuid_KsuidToParts(interp, ksuid, &dictPtr)) {
@@ -272,7 +253,13 @@ static int ksuid_NextKsuidCmd(ClientData clientData, Tcl_Interp *interp, int obj
     DBG(fprintf(stderr, "NextKsuidCmd\n"));
     CheckArgs(2, 2, 1, "ksuid");
 
-    auto ksuid = Tcl_GetString(objv[1]);
+    // Get the ksuid from the arguments
+    int length;
+    auto ksuid = (const unsigned char *) Tcl_GetStringFromObj(objv[1], &length);
+    if (length != PAD_TO_LENGTH) {
+        Tcl_SetObjResult(interp, Tcl_NewStringObj("invalid ksuid", -1));
+        return TCL_ERROR;
+    }
 
     Tcl_Obj *dictPtr;
     if (TCL_OK != ksuid_KsuidToParts(interp, ksuid, &dictPtr)) {
@@ -322,7 +309,13 @@ static int ksuid_PrevKsuidCmd(ClientData clientData, Tcl_Interp *interp, int obj
     DBG(fprintf(stderr, "PrevKsuidCmd\n"));
     CheckArgs(2, 2, 1, "ksuid");
 
-    auto ksuid = Tcl_GetString(objv[1]);
+    // Get the ksuid from the arguments
+    int length;
+    auto ksuid = (const unsigned char *) Tcl_GetStringFromObj(objv[1], &length);
+    if (length != PAD_TO_LENGTH) {
+        Tcl_SetObjResult(interp, Tcl_NewStringObj("invalid ksuid", -1));
+        return TCL_ERROR;
+    }
 
     Tcl_Obj *dictPtr;
     if (TCL_OK != ksuid_KsuidToParts(interp, ksuid, &dictPtr)) {

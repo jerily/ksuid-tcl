@@ -39,10 +39,10 @@ test error-1 {invalid ksuid} -body {
     ::ksuid::ksuid_to_parts $ksuid
 } -returnCodes error -result {invalid base62}
 
-test error-2 {invalid character} -body {
+test error-2 {invalid base62} -body {
     set ksuid "aWgEPTl1tmebfsQzFP4bxwgy80!"
     ::ksuid::ksuid_to_parts $ksuid
-} -returnCodes error -result {invalid character}
+} -returnCodes error -result {invalid base62}
 
 test error-3 {invalid payload length} -body {
     set d [dict create timestamp 0 payload 0]
