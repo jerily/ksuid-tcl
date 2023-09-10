@@ -108,9 +108,8 @@ static int ksuid_ConcatTimestampAndPayload(Tcl_Interp *interp, const unsigned ch
         Tcl_SetObjResult(interp, Tcl_NewStringObj("invalid base62", -1));
         return TCL_ERROR;
     }
-    std::string base62_str(base62, base62 + PAD_TO_LENGTH);
 
-    Tcl_SetObjResult(interp, Tcl_NewStringObj(base62_str.c_str(), base62_str.length()));
+    Tcl_SetObjResult(interp, Tcl_NewStringObj((const char *) base62, PAD_TO_LENGTH));
     return TCL_OK;
 }
 

@@ -64,15 +64,50 @@ test error-5 {invalid hex} -body {
     ::ksuid::parts_to_ksuid $d
 } -returnCodes error -result {invalid hex}
 
-test correct-parts-1 {check correct parts} -body {
+test correct-parts-to-ksuid-1 {check correct parts to ksuid} -body {
     set d [dict create timestamp 294295716 payload "5b4bd92eeb34c91060ebd36a32738f03"]
     ::ksuid::parts_to_ksuid $d
 } -result {2VB3bNOnJhCPqYfm9UQwV90tyTb}
 
-test correct-parts-2 {check correct parts} -body {
+test correct-ksuid-to-parts-1 {check correct ksuid to parts} -body {
+    ::ksuid::ksuid_to_parts "2VB3bNOnJhCPqYfm9UQwV90tyTb"
+} -result {timestamp 294295716 payload 5b4bd92eeb34c91060ebd36a32738f03}
+
+test correct-parts-to-ksuid-2 {check correct parts to ksuid} -body {
     set d [dict create timestamp 294295845 payload "2e6ab5cfe184cf97c5db875c5f6b3570"]
     ::ksuid::parts_to_ksuid $d
 } -result {2VB3rZ7VN8syq2WsQDdWt6DdvSi}
+
+test correct-ksuid-to-parts-2 {check correct ksuid to parts} -body {
+    ::ksuid::ksuid_to_parts "2VB3rZ7VN8syq2WsQDdWt6DdvSi"
+} -result {timestamp 294295845 payload 2e6ab5cfe184cf97c5db875c5f6b3570}
+
+test correct-parts-to-ksuid-3 {check correct parts to ksuid} -body {
+    set d [dict create timestamp 294349141 payload "121C4D73B24F6398AE8B688921DCBEA4"]
+    ::ksuid::parts_to_ksuid $d
+} -result {2VCnt7FEsb3oJqcb7Z3aP8a3tMC}
+
+test correct-ksuid-to-parts-3 {check correct ksuid to parts} -body {
+    ::ksuid::ksuid_to_parts "2VCnt7FEsb3oJqcb7Z3aP8a3tMC"
+} -result {timestamp 294349141 payload 121c4d73b24f6398ae8b688921dcbea4}
+
+test correct-parts-to-ksuid-4 {check correct parts to ksuid} -body {
+    set d [dict create timestamp 107610780 payload "73FC1AA3B2446246D6E89FCD909E8FE8"]
+    ::ksuid::parts_to_ksuid $d
+} -result {0ujzPyRiIAffKhBux4PvQdDqMHY}
+
+test correct-ksuid-to-parts-4 {check correct ksuid to parts} -body {
+    ::ksuid::ksuid_to_parts "0ujzPyRiIAffKhBux4PvQdDqMHY"
+} -result {timestamp 107610780 payload 73fc1aa3b2446246d6e89fcd909e8fe8}
+
+test correct-parts-to-ksuid-5 {check correct parts to ksuid} -body {
+    set d [dict create timestamp 107611700 payload "9850EEEC191BF4FF26F99315CE43B0C8"]
+    ::ksuid::parts_to_ksuid $d
+} -result {0uk1Hbc9dQ9pxyTqJ93IUrfhdGq}
+
+test correct-ksuid-to-parts-5 {check correct ksuid to parts} -body {
+    ::ksuid::ksuid_to_parts "0uk1Hbc9dQ9pxyTqJ93IUrfhdGq"
+} -result {timestamp 107611700 payload 9850eeec191bf4ff26f99315ce43b0c8}
 
 proc sleep {millis} {
     after $millis set stop_wait &
