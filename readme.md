@@ -24,6 +24,8 @@ mkdir build
 cd build
 cmake ..
 make
+# IMPORTANT: run the tests to make sure
+# everything is working fine on your system
 make test
 make install
 ```
