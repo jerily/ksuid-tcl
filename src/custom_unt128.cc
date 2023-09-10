@@ -124,12 +124,44 @@ custom_uint128_t make_uint128_from_bytes(const unsigned char* bytes) {
     return result;
 }
 
+#if defined(_WIN32) // Windows is always little endian
+#define IS_BIG_ENDIAN 0
+#elif defined(__linux__) // Linux has a header with endianness macros
+#include <endian.h>
+#define IS_BIG_ENDIAN (__BYTE_ORDER == __BIG_ENDIAN)
+#elif defined(__APPLE__) // Mac OS X has a header with endianness macros
+#include <machine/endian.h>
+#define IS_BIG_ENDIAN (__DARWIN_BYTE_ORDER == __DARWIN_BIG_ENDIAN)
+#else
+// Unknown system, use a generic method
+//#define IS_BIG_ENDIAN (!(*(unsigned char *)&(uint16_t){1}))
+#define IS_BIG_ENDIAN 0
+#endif
+
+// The equivalent of uint128_to_bytes in go-lang is:
+//func (v uint128) bytes() (out [16]byte) {
+//    binary.BigEndian.PutUint64(out[:8], v[1]) // high
+//    binary.BigEndian.PutUint64(out[8:], v[0]) // low
+//    return
+//}
+
 void uint128_to_bytes(custom_uint128_t x, unsigned char* bytes) {
-    // big endian
     for (int i = 0; i < 8; i++) {
+#if IS_BIG_ENDIAN
+        // when x.hi is in big endian format:
+        bytes[i] = (unsigned char) (x.hi >> ((7 - i) * 8));
+#else
+        // when x.hi is in little endian format:
         bytes[i] = (unsigned char) (x.hi >> (i * 8));
+#endif
     }
     for (int i = 0; i < 8; i++) {
+#if IS_BIG_ENDIAN
+        // when x.hi is in big endian format:
+        bytes[i + 8] = (unsigned char) (x.lo >> ((7 - i) * 8));
+#else
+        // when x.hi is in little endian format:
         bytes[i + 8] = (unsigned char) (x.lo >> (i * 8));
+#endif
     }
 }
