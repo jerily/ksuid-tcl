@@ -13,6 +13,24 @@ timestamp without any special type-aware logic.
 In short, running a set of KSUIDs through the UNIX `sort`
 command will result in a list ordered by generation time.
 
+## Examples
+
+```tcl
+package require ksuid
+
+set ksuid [::ksuid::generate_ksuid]
+# 2VDWAizIu0qTXiApIPdt5yQ9LkT
+
+string length $ksuid
+# 27
+
+set parts [::ksuid::ksuid_to_parts $ksuid]
+# timestamp 294370989 payload 4e7d497583a45e54c098a51a275ca62d
+
+::ksuid::parts_to_ksuid $parts
+# 2VDWAizIu0qTXiApIPdt5yQ9LkT
+```
+
 ## Build for TCL
     
 ```bash
