@@ -34,9 +34,9 @@ set parts [::ksuid::ksuid_to_parts $ksuid]
 ## Build for TCL
     
 ```bash
-wget https://github.com/jerily/ksuid-tcl/archive/refs/tags/v1.0.0.tar.gz
-tar -xzf v1.0.0.tar.gz
-cd ksuid-tcl-1.0.0
+wget https://github.com/jerily/ksuid-tcl/archive/refs/tags/v1.0.1.tar.gz
+tar -xzf v1.0.1.tar.gz
+cd ksuid-tcl-1.0.1
 export KSUID_TCL_DIR=`pwd`
 mkdir build
 cd build
