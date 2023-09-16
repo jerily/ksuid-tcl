@@ -19,6 +19,10 @@ add_test(NAME AllUnitTests COMMAND tclsh ${CMAKE_CURRENT_SOURCE_DIR}/tests/all.t
 add_library(${PROJECT_NAME} MODULE src/library.cc src/base62.cc src/hex.cc src/custom_unt128.cc)
 set_target_properties(${PROJECT_NAME} PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
+if (NOT TCL_INCLUDE_PATH OR NOT TCL_LIBRARY)
+    include(${CMAKE_CURRENT_LIST_DIR}/FindTCL.cmake)
+endif ()
+
 include_directories(${TCL_INCLUDE_PATH})
 target_link_libraries(ksuid-tcl PRIVATE ${TCL_LIBRARY})
 get_filename_component(TCL_LIBRARY_PATH "${TCL_LIBRARY}" PATH)
