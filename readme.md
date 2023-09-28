@@ -34,13 +34,16 @@ set parts [::ksuid::ksuid_to_parts $ksuid]
 ## Build for TCL
     
 ```bash
-wget https://github.com/jerily/ksuid-tcl/archive/refs/tags/v1.0.1.tar.gz
-tar -xzf v1.0.1.tar.gz
-cd ksuid-tcl-1.0.1
+wget https://github.com/jerily/ksuid-tcl/archive/refs/tags/v1.0.2.tar.gz
+tar -xzf v1.0.2.tar.gz
+cd ksuid-tcl-1.0.2
 export KSUID_TCL_DIR=`pwd`
 mkdir build
 cd build
-cmake ..
+# change "TCL_LIBRARY_DIR" and "TCL_INCLUDE_DIR" to the correct paths
+cmake .. \
+  -DTCL_LIBRARY_DIR=/usr/local/lib \
+  -DTCL_INCLUDE_DIR=/usr/local/include
 make
 # IMPORTANT: run the tests to make sure
 # everything is working fine on your system

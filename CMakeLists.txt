@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22.1)
-project(ksuid-tcl VERSION 1.0.1 LANGUAGES CXX C)
+project(ksuid-tcl VERSION 1.0.2 LANGUAGES CXX C)
 message(project: ${PROJECT_NAME})
 
 set(TARGET ${PROJECT_NAME})
@@ -8,20 +8,21 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED true)
 set(CMAKE_C_STANDARD_REQUIRED true)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
-find_package(Threads REQUIRED)
 
-#set(CMAKE_VERBOSE_MAKEFILE ON)
-set(CMAKE_CXX_FLAGS "-DTCL_THREADS -DPROJECT_VERSION=${PROJECT_VERSION} ${CMAKE_CXX_FLAGS}")
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+find_package(TCL EXACT 8.6.13 REQUIRED)  # TCL_INCLUDE_PATH TCL_LIBRARY
+
+message(STATUS "TCL_INCLUDE_PATH: ${TCL_INCLUDE_PATH}")
+message(STATUS "TCL_LIBRARY: ${TCL_LIBRARY}")
+
+set(CMAKE_VERBOSE_MAKEFILE ON)
+set(CMAKE_CXX_FLAGS "-g -DTCL_THREADS -DPROJECT_VERSION=${PROJECT_VERSION} ${CMAKE_CXX_FLAGS}")
 
 enable_testing()
-add_test(NAME AllUnitTests COMMAND tclsh ${CMAKE_CURRENT_SOURCE_DIR}/tests/all.tcl ${CMAKE_CURRENT_BINARY_DIR})
+add_test(NAME AllUnitTests COMMAND tclsh8.6 ${CMAKE_CURRENT_SOURCE_DIR}/tests/all.tcl ${CMAKE_CURRENT_BINARY_DIR})
 
-add_library(${PROJECT_NAME} MODULE src/library.cc src/base62.cc src/hex.cc src/custom_unt128.cc)
+add_library(${PROJECT_NAME} SHARED src/library.cc src/base62.cc src/hex.cc src/custom_unt128.cc)
 set_target_properties(${PROJECT_NAME} PROPERTIES POSITION_INDEPENDENT_CODE ON)
-
-if (NOT TCL_INCLUDE_PATH OR NOT TCL_LIBRARY)
-    include(${CMAKE_CURRENT_LIST_DIR}/FindTCL.cmake)
-endif ()
 
 include_directories(${TCL_INCLUDE_PATH})
 target_link_libraries(ksuid-tcl PRIVATE ${TCL_LIBRARY})
