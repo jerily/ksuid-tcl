@@ -15,6 +15,14 @@
 #include "hex.h"
 #include "custom_uint128.h"
 
+#ifndef TCL_SIZE_MAX
+typedef int Tcl_Size;
+# define Tcl_GetSizeIntFromObj Tcl_GetIntFromObj
+# define Tcl_NewSizeIntObj Tcl_NewIntObj
+# define TCL_SIZE_MAX      INT_MAX
+# define TCL_SIZE_MODIFIER ""
+#endif
+
 #define XSTR(s) STR(s)
 #define STR(s) #s
 
@@ -179,7 +187,7 @@ static int ksuid_KsuidToPartsCmd(ClientData clientData, Tcl_Interp *interp, int 
     // ---- Convert the ksuid to bytes ----
 
     // Get the ksuid from the arguments
-    int length;
+    Tcl_Size length;
     auto ksuid = (const unsigned char *) Tcl_GetStringFromObj(objv[1], &length);
     if (length != PAD_TO_LENGTH) {
         Tcl_SetObjResult(interp, Tcl_NewStringObj("invalid ksuid", -1));
@@ -222,7 +230,7 @@ static int ksuid_PartsToKsuidCmd(ClientData clientData, Tcl_Interp *interp, int 
     ksuid_TimestampToBytes(timestamp, timestamp_bytes);
 
     // ---- Convert the payload to bytes ----
-    int payload_length;
+    Tcl_Size payload_length;
     auto payload = Tcl_GetStringFromObj(payloadPtr, &payload_length);
     unsigned char payload_bytes[PAYLOAD_BYTES];
     if (TCL_OK != hex_decode(payload, payload_length, payload_bytes, PAYLOAD_BYTES)) {
@@ -253,7 +261,7 @@ static int ksuid_NextKsuidCmd(ClientData clientData, Tcl_Interp *interp, int obj
     CheckArgs(2, 2, 1, "ksuid");
 
     // Get the ksuid from the arguments
-    int length;
+    Tcl_Size length;
     auto ksuid = (const unsigned char *) Tcl_GetStringFromObj(objv[1], &length);
     if (length != PAD_TO_LENGTH) {
         Tcl_SetObjResult(interp, Tcl_NewStringObj("invalid ksuid", -1));
@@ -283,7 +291,7 @@ static int ksuid_NextKsuidCmd(ClientData clientData, Tcl_Interp *interp, int obj
         Tcl_SetObjResult(interp, Tcl_NewStringObj("missing payload", -1));
         return TCL_ERROR;
     }
-    int payload_length;
+    Tcl_Size payload_length;
     auto payload = Tcl_GetStringFromObj(payloadPtr, &payload_length);
     unsigned char payload_bytes[PAYLOAD_BYTES];
     if (TCL_OK != hex_decode(payload, payload_length, payload_bytes, PAYLOAD_BYTES)) {
@@ -309,7 +317,7 @@ static int ksuid_PrevKsuidCmd(ClientData clientData, Tcl_Interp *interp, int obj
     CheckArgs(2, 2, 1, "ksuid");
 
     // Get the ksuid from the arguments
-    int length;
+    Tcl_Size length;
     auto ksuid = (const unsigned char *) Tcl_GetStringFromObj(objv[1], &length);
     if (length != PAD_TO_LENGTH) {
         Tcl_SetObjResult(interp, Tcl_NewStringObj("invalid ksuid", -1));
@@ -339,7 +347,7 @@ static int ksuid_PrevKsuidCmd(ClientData clientData, Tcl_Interp *interp, int obj
         Tcl_SetObjResult(interp, Tcl_NewStringObj("missing payload", -1));
         return TCL_ERROR;
     }
-    int payload_length;
+    Tcl_Size payload_length;
     auto payload = Tcl_GetStringFromObj(payloadPtr, &payload_length);
     unsigned char payload_bytes[PAYLOAD_BYTES];
     if (TCL_OK != hex_decode(payload, payload_length, payload_bytes, PAYLOAD_BYTES)) {
@@ -364,7 +372,7 @@ static int ksuid_HexEncodeCmd(ClientData clientData, Tcl_Interp *interp, int obj
     DBG(fprintf(stderr, "HexEncodeCmd\n"));
     CheckArgs(2, 2, 1, "bytes");
 
-    int length;
+    Tcl_Size length;
     auto bytes = Tcl_GetByteArrayFromObj(objv[1], &length);
     std::string hex;
     if (TCL_OK != hex_encode(bytes, length, hex)) {
@@ -380,7 +388,7 @@ static int ksuid_HexDecodeCmd(ClientData clientData, Tcl_Interp *interp, int obj
     DBG(fprintf(stderr, "HexDecodeCmd\n"));
     CheckArgs(2, 2, 1, "hex_string");
 
-    int length;
+    Tcl_Size length;
     auto hex = Tcl_GetStringFromObj(objv[1], &length);
     unsigned char bytes[length / 2];
     if (TCL_OK != hex_decode(hex, length, bytes, length / 2)) {
