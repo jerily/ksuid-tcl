@@ -410,8 +410,14 @@ void ksuid_InitModule() {
     }
 }
 
+#if TCL_MAJOR_VERSION >= 9
+#define MIN_TCL_VERSION "9.0"
+#else
+#define MIN_TCL_VERSION "8.6"
+#endif
+
 int Ksuid_Init(Tcl_Interp *interp) {
-    if (Tcl_InitStubs(interp, "8.6", 0) == nullptr) {
+    if (Tcl_InitStubs(interp, MIN_TCL_VERSION, 0) == nullptr) {
         return TCL_ERROR;
     }
 

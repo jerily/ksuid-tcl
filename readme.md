@@ -34,9 +34,9 @@ set parts [::ksuid::ksuid_to_parts $ksuid]
 ## Build for TCL
     
 ```bash
-wget https://github.com/jerily/ksuid-tcl/archive/refs/tags/v1.0.3.tar.gz
-tar -xzf v1.0.3.tar.gz
-cd ksuid-tcl-1.0.3
+wget https://github.com/jerily/ksuid-tcl/archive/refs/tags/v1.0.4.tar.gz
+tar -xzf v1.0.4.tar.gz
+cd ksuid-tcl-1.0.4
 export KSUID_TCL_DIR=`pwd`
 mkdir build
 cd build
@@ -50,6 +50,14 @@ make
 make test
 make install
 ```
+
+Shared builds link the Tcl stub archive and support Tcl 8.6 or 9.x when built
+with headers for the runtime Tcl major version. Set `TCL_INCLUDE_PATH`,
+`TCL_STUB_LIBRARY`, and `TCL_TCLSH` to select a specific Tcl installation.
+Use `-DBUILD_SHARED_LIBS=OFF` for embedding; static builds omit `pkgIndex.tcl`.
+Link the archive and Tcl into the application, register `Ksuid_Init` under
+`Ksuid` with `Tcl_StaticLibrary` (Tcl 9) or `Tcl_StaticPackage` (Tcl 8.6),
+then call `load {} Ksuid`.
 
 ## Build for NaviServer
 
