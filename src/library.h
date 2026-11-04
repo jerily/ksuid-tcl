@@ -17,7 +17,7 @@
 extern "C" {
 #endif
 
-extern int Ksuid_Init(Tcl_Interp *interp);
+DLLEXPORT int Ksuid_Init(Tcl_Interp *interp);
 #ifdef USE_NAVISERVER
 NS_EXTERN int Ns_ModuleVersion = 1;
 NS_EXTERN int Ns_ModuleInit(const char *server, const char *module);
