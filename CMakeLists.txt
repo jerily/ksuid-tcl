@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22.1)
-project(ksuid-tcl VERSION 1.0.4 LANGUAGES C CXX)
+project(ksuid-tcl VERSION 1.0.5 LANGUAGES C CXX)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
